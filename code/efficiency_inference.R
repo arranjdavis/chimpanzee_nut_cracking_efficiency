@@ -712,7 +712,7 @@ dfbeta(dr_influence)
 
 ### ### ###
 
-#get influence of each level-two unit (individual) for displacement rate
+#get influence of each level-two unit (individual) for tool switching rate
 ts_influence = influence_mixed(ts, groups = "subject")
 
 #get the DFBETAS cut-off according to Nieuwenhuis et al. (2012)
