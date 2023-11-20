@@ -4,39 +4,43 @@ Emails: sophie.berdugo@anthro.ox.ac.uk
 Affiliation: Institute of Human Sciences, University of Oxford
 "
 
+library(tidyverse) 
+library(readxl)
+
 #clean environment
 rm(list = ls())
 
-library(tidyverse) 
-library(readxl)
+#set current working directory to the one this script is in (when in RStudio)
+code_dir = dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(code_dir)
 
 ################################################################################################################################################
 
 ### LOAD THE DATA ###
 
 #load data
-subject_videos_1992 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1992_subject_UIDs.xlsx")
-subject_videos_1993 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1993_subject_UIDs.xlsx")
-subject_videos_1994 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1994_subject_UIDs.xlsx")
-subject_videos_1995 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1995_subject_UIDs.xlsx")
-subject_videos_1996 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1996_subject_UIDs.xlsx")
-subject_videos_1997 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1997_subject_UIDs.xlsx")
-subject_videos_1999 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1998_subject_UIDs.xlsx")
-subject_videos_1999 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/1999_subject_UIDs.xlsx")
-subject_videos_2000 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2000_subject_UIDs.xlsx")
-subject_videos_2002 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2002_subject_UIDs.xlsx")
-subject_videos_2003 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2003_subject_UIDs.xlsx")
-subject_videos_2004 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2004_subject_UIDs.xlsx")
-subject_videos_2005 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2005_subject_UIDs.xlsx")
-subject_videos_2006 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2006_subject_UIDs.xlsx")
-subject_videos_2008 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2008_subject_UIDs.xlsx")
-subject_videos_2009 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2009_subject_UIDs.xlsx")
-subject_videos_2012 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2012_subject_UIDs.xlsx")
-subject_videos_2013 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2013_subject_UIDs.xlsx")
-subject_videos_2014 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2014_subject_UIDs.xlsx")
-subject_videos_2015 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2015_subject_UIDs.xlsx")
-subject_videos_2016 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2016_subject_UIDs.xlsx")
-subject_videos_2017 = read_excel("~/Documents/Oxford/DPhil/Project Components/Methods/Data/Subjects UIDs by Year/2017_subject_UIDs.xlsx")
+subject_videos_1992 = read_excel("../video_selection/1992_subject_UIDs.xlsx")
+subject_videos_1993 = read_excel("../video_selection/1993_subject_UIDs.xlsx")
+subject_videos_1994 = read_excel("../video_selection/1994_subject_UIDs.xlsx")
+subject_videos_1995 = read_excel("../video_selection/1995_subject_UIDs.xlsx")
+subject_videos_1996 = read_excel("../video_selection/1996_subject_UIDs.xlsx")
+subject_videos_1997 = read_excel("../video_selection/1997_subject_UIDs.xlsx")
+subject_videos_1999 = read_excel("../video_selection/1998_subject_UIDs.xlsx")
+subject_videos_1999 = read_excel("../video_selection/1999_subject_UIDs.xlsx")
+subject_videos_2000 = read_excel("../video_selection/2000_subject_UIDs.xlsx")
+subject_videos_2002 = read_excel("../video_selection/2002_subject_UIDs.xlsx")
+subject_videos_2003 = read_excel("../video_selection/2003_subject_UIDs.xlsx")
+subject_videos_2004 = read_excel("../video_selection/2004_subject_UIDs.xlsx")
+subject_videos_2005 = read_excel("../video_selection/2005_subject_UIDs.xlsx")
+subject_videos_2006 = read_excel("../video_selection/2006_subject_UIDs.xlsx")
+subject_videos_2008 = read_excel("../video_selection/2008_subject_UIDs.xlsx")
+subject_videos_2009 = read_excel("../video_selection/2009_subject_UIDs.xlsx")
+subject_videos_2012 = read_excel("../video_selection/2012_subject_UIDs.xlsx")
+subject_videos_2013 = read_excel("../video_selection/2013_subject_UIDs.xlsx")
+subject_videos_2014 = read_excel("../video_selection/2014_subject_UIDs.xlsx")
+subject_videos_2015 = read_excel("../video_selection/2015_subject_UIDs.xlsx")
+subject_videos_2016 = read_excel("../video_selection/2016_subject_UIDs.xlsx")
+subject_videos_2017 = read_excel("../video_selection/2017_subject_UIDs.xlsx")
 
 ################################################################################################################################################
 
