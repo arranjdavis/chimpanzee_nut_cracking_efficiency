@@ -13,3 +13,4 @@ The *chimpanzee_nut_cracking_efficiency* repository contains the `code` and `dat
 
 ### `data`
 - `minimum_data.csv`: A subset of data used in analysis.
+- `1995_subject_UIDs.csv`: The video unique identifier (UID) codes for the 1995 field season used to randomly sample footage for data collection.
