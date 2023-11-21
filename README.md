@@ -9,7 +9,7 @@ The *chimpanzee_nut_cracking_efficiency* repository contains the `code` and `dat
 ### `code`
 - `video_selection.R`: The data collection protocol code used to randomly select videos from the Bossou video archive.
 - `clean_all_efficiency_data.R`: The data cleaning code used on the raw data.
-- `efficiency_inference.R`: The data analysis code, including code for plotting.
+- `efficiency_inference.R`: The data analysis code, including code for plotting and model assumption checks.
 
 ### `data`
 - `minimum_data.csv`: A subset of data used in analysis.
