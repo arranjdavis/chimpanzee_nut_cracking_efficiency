@@ -19,6 +19,7 @@ library(ggcorrplot)
 library(car)
 library(VGAM)
 library(glmmTMB)
+library(MASS)
 
 #clean environment
 rm(list = ls())
@@ -35,7 +36,7 @@ setwd(code_dir)
 '%!in%' = function(x,y)!('%in%'(x,y))
 
 #load and subset the data
-efficiency_data = read.csv('../cleaned_data/cleaned_efficiency_data.csv')
+efficiency_data = read.csv('../clean_data/cleaned_efficiency_data.csv')
 efficiency_data = subset(efficiency_data, efficiency_data$bout_outcome != "Failed" & 
                          efficiency_data$nut_species != "Coula nut" &
                          efficiency_data$bout_outcome != "None" &
@@ -98,6 +99,7 @@ summary(mod2)
 #test whether the `Subject` term is significant (compare models with and without a random effect of `Subject`; it is highly significant)
 mod3 = lm(log(bout_duration) ~ 1 + age + sex, data = efficiency_data)
 anova(mod2, mod3)
+tab_model(mod3, mod2)
 
 ### ### ###
 
@@ -139,7 +141,6 @@ bout_duration_ri = ggplot(rand_ints, aes(intercept, subject, color=sex)) +
                     xlab("Random intercept") +
                     ggtitle("Log bout duration (linear random intercept model)") +
                     helvetica_theme
-
 bout_duration_ri
 
 #save the plot (as a JPG and PDF)
@@ -158,110 +159,69 @@ rand_int_duration_ordered$rank = seq.int(nrow(rand_int_duration_ordered))
 
 ### ### ###
 
-#fit models
-spn_mod_simp = vglm(strike_count ~ 1 + (1 | subject), data = efficiency_data, family = pospoisson())
-summary(spn_mod_simp)
+#fit zero truncated poisson models
+spn_mod_tmb_simp = glmmTMB(strike_count ~ 1 + (1 | subject), data = efficiency_data, family = truncated_poisson(link="log"))
+summary(spn_mod_tmb_simp)
 
-spn_mod = vglm(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data, family = pospoisson())
-summary(spn_mod)
+spn_mod_tmb = glmmTMB(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data, family = truncated_poisson(link="log")) 
+summary(spn_mod_tmb)
 
-spn_mod_lm_vglm = vglm(strike_count ~ 1 + age + sex, data = efficiency_data, family = pospoisson())
-summary(spn_mod_lm_vglm)
+spn_mod_tmb_lm = glmmTMB(strike_count ~ 1 + age + sex, data = efficiency_data, family = truncated_poisson(link="log")) 
+summary(spn_mod_tmb_lm)
 
-spn_mod_lm = glm(strike_count ~ 1 + age + sex, data = efficiency_data, family = poisson(link = "log"))
-summary(spn_mod_lm)
+#check for over dispersion (overdispersion detected)
+check_overdispersion(spn_mod_tmb)
 
-anova(spn_mod_lm, spn_mod_lm_vglm)
+#fit truncated negative binomial model
+spn_mod_tmb_nb = glmmTMB(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data, family = truncated_nbinom2(link="log")) 
+summary(spn_mod_tmb_nb)
 
-### HERE HERE HERE - FIGURE OUT HOW TO MODEL THESE ###
+spn_mod_tmb_nb_lm = glmmTMB(strike_count ~ 1 + age + sex, data = efficiency_data, family = truncated_nbinom2(link="log")) 
+summary(spn_mod_tmb_nb_lm)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-spn_mod_simp = glmer(strike_count ~ 1 + (1 | subject), data = efficiency_data, family = poisson(link = "log"))
-summary(spn_mod_simp)
-
-spn_mod = glmer(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data, family = poisson(link = "log"))
-summary(spn_mod)
-
-spn_mod_lm = glm(strike_count ~ 1 + age + sex, data = efficiency_data, family = poisson(link = "log"))
-summary(spn_mod_lm)
+#compare the models
+anova(spn_mod_tmb_nb, spn_mod_tmb_nb_lm)
+tab_model(spn_mod_tmb_nb_lm, spn_mod_tmb_nb)
 
 ### ### ###
 
-#check for overdispersion 
-check_overdispersion(spn_mod)
-
-#use a negative binomial model because of overdispersion
-spn_mod_nb = glmer.nb(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data)
-summary(spn_mod_nb)
-
-#compare the models
-tab_model(spn_mod_nb, spn_mod_lm)
-anova(spn_mod_nb, spn_mod_lm)
-
 #choose model to plot
-model_re = spn_mod_nb
+mod = spn_mod_tmb_nb
 
-#get random effects and their variances
-model_re_tmp = lme4::ranef(model_re, condVar = TRUE)
-temp_vars = as.data.frame.table((attr(lme4::ranef(model_re, condVar = TRUE)[[1]], "postVar")))
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(mod, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
 
-#add to a data frame
-rand_ints = model_re_tmp$subject
-colnames(rand_ints)[1] = "intercept"
-rand_ints$variance = temp_vars$Freq
-
-#calculate standard deviation for intercepts and 95% CI
-rand_ints$error = 2*sqrt(rand_ints$variance)
-rand_ints$lower_95 = rand_ints$intercept - rand_ints$error
-rand_ints$upper_95 = rand_ints$intercept + rand_ints$error
-
-#create a subject variable
-rand_ints$subject = rownames(rand_ints)
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
 
 #add sex to the random intercept data frame and set as factors
-rand_ints$sex = c("Female", "Female", "Male", "Male", "Female", "Female", "Male", "Female", "Female", "Female", "Male", "Female", "Male", "Female", "Male", "Male", "Female", "Female", "Male", "Female", "Male")
-rand_ints$sex = as.factor(rand_ints$sex)
-
-#order by size of intercept
-rand_ints$subject = factor(rand_ints$subject, levels = rand_ints$subject[order(rand_ints$intercept)])
+mod_re$sex = c("Female", "Female", "Male", "Male", "Female", "Female", "Male", "Female", "Female", "Female", "Male", "Female", "Male", "Female", "Male", "Male", "Female", "Female", "Male", "Female", "Male")
+mod_re$sex = as.factor(mod_re$sex)
 
 #plot the data
-strikes_ri = ggplot(rand_ints, aes(intercept, subject, color=sex)) + 
+strikes_ri = ggplot(mod_re, aes(intercept, subject, color=sex)) + 
               geom_point() + 
               scale_color_manual(values = c("#f1a340", "#998ec3"), name = "Sex") +
               geom_errorbar(aes(xmin = lower_95, xmax = upper_95), width=.2, position=position_dodge(0.05), color = "#525252") +
               geom_vline(xintercept = 0, size=0.3, linetype = "dashed", color = "black") +  
-              scale_x_continuous(breaks = seq(-1, 1.5, .5), limits = c(-1,1.5)) +
+              scale_x_continuous(breaks = seq(-2, 2, .5), limits = c(-2,2)) +
               ylab("Individual") +
               xlab("Random intercept") +
-              ggtitle("Strikes per nut (Poisson random intercept model)") +
-              avenir_theme
-
+              ggtitle("Strikes per nut (zero-truncated negative binomial random intercept model)") +
+              helvetica_theme
 strikes_ri
 
+#save the plot
 ggsave("../plots/strikes_subject_random_intercepts.jpg", strikes_ri, height = 10, width = 7.5)
 
 ### ### ###
 
 #sort data frame by intercept
-rand_int_strikes_ordered = rand_ints[order(rand_ints$intercept), ]
+rand_int_strikes_ordered = mod_re[order(mod_re$intercept), ]
 rand_int_strikes_ordered$rank = seq.int(nrow(rand_int_strikes_ordered))
 
 ################################################################################################################################################
@@ -274,7 +234,7 @@ library(ordinal)
 '%!in%' = function(x,y)!('%in%'(x,y))
 
 #load and subset the data
-sr_data = read.csv('../cleaned_data/cleaned_efficiency_data.csv')
+sr_data = read.csv('../clean_data/cleaned_efficiency_data.csv')
 sr_data = subset(sr_data,
                  sr_data$nut_species != "Coula nut" &
                  sr_data$bout_outcome != "None" &
@@ -305,7 +265,7 @@ exp(coef(clmm1)[3])
 clmm1_simp_lm = clm2(bout_outcome_ordered ~ sex, data = sr_data)
 summary(clmm1_simp_lm)
 anova(clmm1_simp, clmm1_simp_lm)
-tab_model(clmm1_simp, clmm1_simp_lm)
+tab_model(clmm1_simp_lm, clmm1_simp)
 
 ### ### ###
 
@@ -335,9 +295,10 @@ success_ri = ggplot(mod_re, aes(intercept, subject, color=sex)) +
               ylab("Individual") +
               xlab("Random intercept") +
               ggtitle("Success rate (cummulative link random intercept model)") +
-              avenir_theme
+              helvetica_theme
 success_ri
 
+#save the plot
 ggsave("../plots/success_subject_random_intercepts.jpg", success_ri, height = 10, width = 7.5)
 
 #sort data frame by intercept
@@ -349,7 +310,7 @@ rand_int_success_ordered$rank = seq.int(nrow(rand_int_success_ordered))
 ### DISPLACEMENT RATE ###
 
 #load and subset the data
-rate_data = read.csv('../cleaned_data/cleaned_efficiency_data.csv')
+rate_data = read.csv('../clean_data/cleaned_efficiency_data.csv')
 rate_data = subset(rate_data, rate_data$nut_species != "Coula nut" &
                               rate_data$bout_outcome != "None" &
                               rate_data$learner %!in% c("Clinging","Clinging and Peering"))
@@ -361,7 +322,7 @@ displacement_individual = ggplot(rate_data, aes(displacement_count)) +
                             ylab("Frequency") +
                             xlab("Number of displacements per bout") +
                             ggtitle("Histogram of Displacement Frequency by Individual") +
-                            avenir_theme
+                            helvetica_theme
 displacement_individual
 
 #fit models
@@ -375,6 +336,7 @@ dr_mod_lm = glmmTMB(displacement_count ~ 1 + age + sex, data = rate_data, family
 summary(dr_mod_lm)
 
 anova(dr_mod_tmb, dr_mod_lm)
+tab_model(dr_mod_lm, dr_mod_tmb)
 
 ### ### ###
 
@@ -405,9 +367,10 @@ displacement_ri = ggplot(mod_re, aes(intercept, subject, color=sex)) +
                     ylab("Individual") +
                     xlab("Random intercept") +
                     ggtitle("Displacement rate (zero-inflated negative binomial random intercept model)") +
-                    avenir_theme
+                    helvetica_theme
 displacement_ri
 
+#save the plot
 ggsave("../plots/displacements_subject_random_intercepts.jpg", displacement_ri, height = 10, width = 7.5)
 
 ### ### ###
@@ -427,7 +390,7 @@ tool_switch_rate = ggplot(rate_data, aes(tool_switch_count)) +
                     ylab("Frequency") +
                     xlab("Number of tool switches per bout") +
                     ggtitle("Histogram of Tool Switch Frequency by Individual") +
-                    avenir_theme
+                    helvetica_theme
 tool_switch_rate
 
 #fit models
@@ -442,6 +405,7 @@ summary(ts_mod_tmb_lm)
 
 #compare the models
 anova(ts_mod_tmb, ts_mod_tmb_lm)
+tab_model(ts_mod_tmb_lm, ts_mod_tmb)
 
 ### ### ###
 
@@ -472,10 +436,10 @@ tool_swtich_ri = ggplot(mod_re, aes(intercept, subject, color=sex)) +
                     ylab("Individual") +
                     xlab("Random intercept") +
                     ggtitle("Tool switch rate (zero-inflated negative binomial random intercept model)") +
-                    avenir_theme
-
+                    helvetica_theme
 tool_swtich_ri
 
+#save the plot
 ggsave("../plots/tool_switch_subject_random_intercepts.jpg", tool_swtich_ri, height = 10, width = 7.5)
 
 ### ### ###
@@ -500,7 +464,6 @@ rand_int_duration_ordered$outcome = "Bout duration"
 rand_int_tool_switch_ordered$outcome = "Tool switch rate"
 rand_int_strikes_ordered$outcome = "Strikes per nut"
 rand_int_success_ordered$outcome = "Success rate"
-
 
 all_ranks = do.call("rbind", list(rand_int_displacement_ordered[, c("subject", "rank", "outcome")],
                                   rand_int_duration_ordered[, c("subject", "rank", "outcome")],
@@ -551,9 +514,10 @@ rank_plot = ggplot(one_ranks, aes(x = rank, y = subject, color = outcome)) +
               ylab("Individual") +
               xlab("Rank") +
               labs(colour = "Outcome") +
-              avenir_theme 
+              helvetica_theme 
 rank_plot
 
+#save the plot
 ggsave("../plots/rank_by_outcome_and_subject.jpg", rank_plot, height = 10, width = 7.5)
 
 ### ### ###
@@ -576,19 +540,13 @@ rownames(M1) <- c("Bout duration", "Strikes/nut",  "Success rate", "Displacement
 correlation_plot = ggcorrplot(M1, hc.order = FALSE, type = "upper", outline.col = "white", lab = TRUE, colors = c("#0072B2", "white", "#D55E00"),
                      legend.title = expression(paste("Correlation (", italic("r"), ")")),
                      title = "Correlation of rankings for all pairs of nut cracking efficiency measures") + 
-                     theme(text=element_text(size=header_size,family='avenir'),
-                           axis.text.x = element_text(color = 'black', size = axis_size, vjust = 1),
-                           axis.text.y = element_text(color = 'black', size = axis_size),
-                           panel.background = element_blank(),
-                           panel.grid.major.x = element_line(color = '#e7e7e7'),
-                           panel.grid.major.y = element_line(color = '#e7e7e7'),
-                           legend.key = element_blank(),
-                           plot.title = element_text(hjust = 0.5, face = "bold"))
+                     helvetica_theme
 correlation_plot
 
+#save the plot
 ggsave("../plots/correlation_matrix.jpg", correlation_plot, height = 7.5, width = 7.5, bg="white")
 
-#re-calculate the interclass correlation coefficient, removing tool switch count
+#re-calculate the inter class correlation coefficient, removing tool switch count
 icc_results_new = icc(ranks_wide[, c("bout_duration", "displacement_count", "success_rate", "strike_count")], model = "twoway", type = "consistency", unit = "single")
 icc_results_new
 
@@ -607,9 +565,10 @@ rank_plot_eff = ggplot(one_ranks_eff, aes(x = rank, y = subject, color = outcome
                   ylab("Individual") +
                   xlab("Rank") +
                   labs(colour = "Outcome") +
-                  avenir_theme 
-                  rank_plot
+                  helvetica_theme 
+rank_plot_eff
 
+#save the plot
 ggsave("../plots/efficiency_rank_plot.jpg", rank_plot_eff, height = 10, width = 7.5)
 
 ################################################################################################################################################
@@ -619,19 +578,17 @@ ggsave("../plots/efficiency_rank_plot.jpg", rank_plot_eff, height = 10, width = 
 library(car)
 library(rcompanion)
 library(influence.ME)
+library(sure)
 
 #re-estimate models
 bout_d = lmer(log(bout_duration) ~ 1 + age + sex + (1 | subject), data = efficiency_data)
-spn = glmer.nb(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data)
+spn = glmmTMB(strike_count ~ 1 + age + sex + (1 | subject), data = efficiency_data, family = truncated_nbinom2(link="log"))
 dr = glmmTMB(displacement_count ~ 1 + age + sex + (1 | subject), data = rate_data, family = nbinom1, zi = ~ 1) 
 ts = glmmTMB(tool_switch_count ~ 1 + age + sex + (1 | subject), data = rate_data, family = nbinom1, zi = ~ 1) 
-sr = clmm2(bout_outcome_ordered ~ sex, random =  subject, data = sr_data, Hess = TRUE, nAGQ = 7)
+sr = clmm(bout_outcome_ordered ~ sex, random = subject, data = sr_data, Hess = TRUE, nAGQ = 7)
 
 #check multicollinearity for each model (not necessary for success rate as there is only one predictor variable)
 vif(bout_d)
-vif(spn)
-vif(dr)
-vif(ts)
 
 ### RESIDUAL NORMALITY ##
 
@@ -646,6 +603,19 @@ qqline(residuals(bout_d), col="blue")
 plot(fitted(bout_d), resid(bout_d)^2,
      ylab = "Squared log bout duration residuals",
      xlab = "Fitted log bout duration values")
+
+#plot assumption checks as 2 by 2
+bout_d_assumtpion_checks = par(mfrow=c(2,2))
+                              plotNormalHistogram(residuals(bout_d),
+                                                  xlab = "Log bout duration residuals") #plot 1
+                              qqnorm(residuals(bout_d),
+                                     ylab= "Sample quantiles for residuals")
+                              qqline(residuals(bout_d), 
+                                     col="blue") #plot 2
+                              plot(fitted(bout_d), resid(bout_d)^2,
+                                   ylab = "Squared log bout duration residuals",
+                                   xlab = "Fitted log bout duration values") #plot 3
+                              qqnorm(rand_ints$intercept) #plot 4
 
 ### RANDOM INTERCEPT NORMALITY ###
 
@@ -701,6 +671,17 @@ anova(eff_dat_sub_lmer, eff_dat_sub_lm)
 
 source(system.file("other_methods", "influence_mixed.R", package = "glmmTMB"))
 
+#get influence of each level-two unit (individual) for strikes per nut
+spn_influence = influence_mixed(spn, groups = "subject")
+
+#get the DFBETAS cut-off according to Nieuwenhuis et al. (2012)
+print(paste("Cut-off: ", 2 / sqrt(21)))
+
+#none of the individuals have DFBETAS score above the cut-off
+dfbeta(spn_influence)
+
+### ### ###
+
 #get influence of each level-two unit (individual) for displacement rate
 dr_influence = influence_mixed(dr, groups = "subject")
 
@@ -721,28 +702,15 @@ print(paste("Cut-off: ", 2 / sqrt(21)))
 #none of the individuals have DFBETAS score above the cut-off
 dfbeta(ts_influence)
 
+### ### ###
 
+#visually assess presence of influential cases using surrogate residuals (see Liu and Zhang 2018, doi: 10.1080/01621459.2017.1292915)
+sr_lm = clm(bout_outcome_ordered ~ sex, data = sr_data)
+surrogate(sr_lm,method=c("latent"), nsim=1L)
 
-
-
-
-
-
-
-
-
-#plot assumption checks as 2 by 2
-bout_d_assumtpion_checks <- par(mfrow=c(2,2))
-plotNormalHistogram(residuals(bout_d),
-                    xlab = "Log bout duration residuals") #plot 1
-qqnorm(residuals(bout_d),
-       ylab= "Sample quantiles for residuals")
-qqline(residuals(bout_d), 
-       col="blue") #plot 2
-plot(fitted(bout_d), resid(bout_d)^2,
-     ylab = "Squared log bout duration residuals",
-     xlab = "Fitted log bout duration values") #plot 3
-qqnorm(rand_ints$intercept) #plot 4
+set.seed(1225) #for reproducibility 
+grid.arrange(autoplot.clm(sr_lm, nsim=10,what="qq"), #qq plot
+             autoplot.clm(sr_lm, nsim=10,what="fitted",alpha=0.5), ncol =2 ) #residual-vs-fitted value plot
 
 #save plots
 bout_d_residual_plot = plotNormalHistogram(residuals(bout_d),
