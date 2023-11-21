@@ -4,7 +4,7 @@
 
 ## Repository contents
 
-The *chimpanzee_nut_cracking_efficiency* repository contains the `code` and `data` for the above research paper: 
+The *chimpanzee_nut_cracking_efficiency* repository contains the `code` and `data` for the above pre-print: 
 
 ### `code`
 - `video_selection`: The data collection protocol code used to randomly select videos from the Bossou video archive.
