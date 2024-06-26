@@ -20,6 +20,11 @@ library(car)
 library(VGAM)
 library(glmmTMB)
 library(MASS)
+library(dplyr)
+library(GGally)
+library(geomtextpath)
+library(smplot2)
+library(forcats)
 
 #clean environment
 rm(list = ls())
@@ -50,40 +55,304 @@ efficiency_data$subject = as.factor(efficiency_data$subject)
 
 ### GRAPH THEMES ###
 
-#fonts
-quartzFonts(avenir = c("Avenir Book", "Avenir Black", "Avenir Book Oblique", "Avenir Black Oblique"))
-
 #theme
-header_size = 10
-axis_size = 10
+header_size = 15
+axis_size = 12
 
 #theme for plots
-avenir_theme = theme(text=element_text(size=header_size,family='avenir'),
-                axis.text.x = element_text(color = 'black', size = axis_size, vjust = 1),
-                axis.text.y = element_text(color = 'black', size = axis_size),
-                axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), face = "bold"),
-                axis.title.x = element_text(margin = margin(t = 10, r = 10, b = 0, l = 0), face = "bold"),
-                panel.background = element_blank(),
-                panel.grid.major.x = element_line(color = '#e7e7e7'),
-                panel.grid.major.y = element_line(color = '#e7e7e7'),
-                legend.key = element_blank(),
-                plot.title = element_text(hjust = 0.5, face = "bold"))
+helvetica_theme = theme(text=element_text(size = header_size,family='Helvetica'),
+                        axis.text.x = element_text(color = 'black', size = axis_size, vjust = 1),
+                        axis.text.y = element_text(color = 'black', size = axis_size),
+                        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), face = "bold"),
+                        axis.title.x = element_text(margin = margin(t = 10, r = 10, b = 0, l = 0), face = "bold"),
+                        panel.background = element_blank(),
+                        panel.grid.major.x = element_line(color = '#e7e7e7'),
+                        panel.grid.major.y = element_line(color = '#e7e7e7'),
+                        legend.key = element_blank(),
+                        plot.title = element_text(hjust = 0.5, face = "bold"))
 
-#theme for plots
-helvetica_theme = theme(text=element_text(size = 7,family='Helvetica'),
-                     axis.text.x = element_text(color = 'black', size = 7, vjust = 1),
-                     axis.text.y = element_text(color = 'black', size = 7),
-                     axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), face = "bold"),
-                     axis.title.x = element_text(margin = margin(t = 10, r = 10, b = 0, l = 0), face = "bold"),
-                     panel.background = element_blank(),
-                     panel.grid.major.x = element_line(color = '#e7e7e7'),
-                     panel.grid.major.y = element_line(color = '#e7e7e7'),
-                     legend.key = element_blank(),
-                     plot.title = element_text(hjust = 0.5, face = "bold"))
-
-#set the font (chose one)
-#par(family = 'avenir')
+#set the font
 par(family = 'helvetica')
+
+################################################################################################################################################
+
+### VISUALISE THE DATA ###
+
+#subset the data into age groups
+age_6_10 = subset(efficiency_data, (efficiency_data$age >= 6 & efficiency_data$age <= 10))
+age_11_20 = subset(efficiency_data, (efficiency_data$age >= 11 & efficiency_data$age <= 20))
+age_21_30 = subset(efficiency_data, (efficiency_data$age >= 21 & efficiency_data$age <= 30))
+age_31_40 = subset(efficiency_data, (efficiency_data$age >= 31 & efficiency_data$age <= 40))
+age_41_50 = subset(efficiency_data, (efficiency_data$age >= 41 & efficiency_data$age <= 50))
+age_51_60 = subset(efficiency_data, (efficiency_data$age >= 51))
+
+#demarcate each of the age groupings by adding a new column for "AgeGroup"
+age_6_10$AgeGroup = "6 to 10" 
+age_11_20$AgeGroup = "11 to 20"
+age_21_30$AgeGroup = "21 to 30"
+age_31_40$AgeGroup = "31 to 40"
+age_41_50$AgeGroup = "41 to 50"
+age_51_60$AgeGroup = "51 to 60"
+
+#add all of the age groups together into a variable called all_age
+all_age = do.call("rbind", list(age_6_10, age_11_20, age_21_30,
+                                age_31_40, age_41_50, age_51_60)) 
+
+#order the age group factor into ascending order
+all_age$AgeGroup = factor(all_age$AgeGroup, levels = c("6 to 10", "11 to 20", "21 to 30", "31 to 40", "41 to 50", "51 to 60")) 
+
+#order the individual factor by age group (youngest age group first)
+all_age$subject_ordered = factor(all_age$subject, levels = c("Fanwaa", "Flanle", "Ja", "Joya", "Nto", "Poni", "Fotaiu", "Na", "Peley", "Pili", "Vuavua",
+                                                             "Vui", "Yolo", "Fanle", "Jeje", "Foaf", "Fana", "Jire", "Kai", "Tua", "Velu", "Yo"))
+
+
+#reverse the order of `subject_ordered` and `AgeGroup`
+all_age$subject_ordered_rev = fct_rev(all_age$subject_ordered)
+all_age$AgeGroup_rev = fct_rev(all_age$AgeGroup)
+
+#order of age colors
+age_col_order = c("#a63603", "#2171b5", "#f16913", "#6baed6", "#fdae6b", "#c6dbef")
+age_col_order_rev = c("#c6dbef", "#fdae6b", "#6baed6", "#f16913", "#2171b5", "#a63603")
+
+## PLOT BOUT DURATION ##
+
+#plot the data as box plots
+boxplot_boutduration = ggplot(all_age, aes(x = bout_duration, y = subject_ordered_rev, fill = AgeGroup)) +
+                          geom_boxplot(outlier.size = .4, width = .8, position = position_dodge2(preserve = "single"), alpha = 0.9) + 
+                          scale_x_continuous(breaks = seq(0, 30, 2), limits = c(0, 30)) +
+                          scale_fill_manual(values = age_col_order, name = "Age (years)", 
+                                            breaks = c("51 to 60", "41 to 50", "31 to 40", "21 to 30", "11 to 20", "6 to 10")) +
+                          xlab("Bout duration (seconds)") +
+                          ylab("Individual") + 
+                          scale_y_discrete(limits = rev) + 
+                          helvetica_theme
+
+boxplot_boutduration
+
+#save the plot 
+ggsave("../plots/bout_duration_age_group_plot.jpg", boxplot_boutduration, height = 16, width = 9)
+
+## PLOT STRIKES PER NUT ##
+
+#plot the data as box plots
+boxplot_strikespernut = ggplot(all_age, aes(x = strike_count, y = subject_ordered_rev, fill = AgeGroup)) +
+                          geom_boxplot(outlier.size = .4, width = .8, position = position_dodge2(preserve = "single"), alpha= 0.9) + 
+                          scale_x_continuous(breaks = seq(0, 30, 2), limits = c(1, 30)) +
+                          scale_fill_manual(values = age_col_order, name = "Age (years)", 
+                                            breaks = c("51 to 60", "41 to 50", "31 to 40", "21 to 30", "11 to 20", "6 to 10")) +
+                          xlab("Strikes per nut") +
+                          ylab("Individual") + 
+                          scale_y_discrete(limits = rev) + 
+                          helvetica_theme
+
+boxplot_strikespernut
+
+#save the plot 
+ggsave("../plots/strikes_per_nut_age_group_plot.jpg", boxplot_strikespernut, height = 16, width = 9)
+
+## PLOT DISPLACEMENT RATE ##
+
+#load and subset the data
+rate_data = read.csv('../clean_data/cleaned_efficiency_data.csv')
+rate_data = subset(rate_data, rate_data$nut_species != "Coula nut" &
+                     rate_data$bout_outcome != "None" &
+                     rate_data$learner %!in% c("Clinging","Clinging and Peering"))
+
+#subset the data into age groups
+age_6_10_rate = subset(rate_data, (rate_data$age >= 6 & rate_data$age <= 10))
+age_11_20_rate = subset(rate_data, (rate_data$age >= 11 & rate_data$age <= 20))
+age_21_30_rate = subset(rate_data, (rate_data$age >= 21 & rate_data$age <= 30))
+age_31_40_rate = subset(rate_data, (rate_data$age >= 31 & rate_data$age <= 40))
+age_41_50_rate = subset(rate_data, (rate_data$age >= 41 & rate_data$age <= 50))
+age_51_60_rate = subset(rate_data, (rate_data$age >= 51))
+
+#demarcate each of the age groupings by adding a new column for "AgeGroup"
+age_6_10_rate$AgeGroup = "6 to 10" 
+age_11_20_rate$AgeGroup = "11 to 20"
+age_21_30_rate$AgeGroup = "21 to 30"
+age_31_40_rate$AgeGroup = "31 to 40"
+age_41_50_rate$AgeGroup = "41 to 50"
+age_51_60_rate$AgeGroup = "51 to 60"
+
+#add all of the age groups together into a variable called all_age_rate
+all_age_rate = do.call("rbind", list(age_6_10_rate, age_11_20_rate, age_21_30_rate,
+                                     age_31_40_rate, age_41_50_rate, age_51_60_rate)) 
+
+#order the age group factor into ascending order
+all_age_rate$AgeGroup = factor(all_age_rate$AgeGroup, levels = c("6 to 10", "11 to 20", "21 to 30", "31 to 40", "41 to 50", "51 to 60"))
+
+#order the individual factor by age group (youngest age group first
+all_age_rate$subject_ordered = factor(all_age_rate$subject, levels = c("Fanwaa", "Flanle", "Ja", "Joya", "Nto", "Poni", "Fotaiu", "Na", "Peley", "Pili", "Vuavua",
+                                                                       "Vui", "Yolo", "Fanle", "Jeje", "Foaf", "Fana", "Jire", "Kai", "Tua", "Velu", "Yo"))
+
+#reverse the order of `subject_ordered` and `AgeGroup`
+all_age_rate$subject_ordered_rev = fct_rev(all_age_rate$subject_ordered)
+all_age_rate$AgeGroup_rev = fct_rev(all_age_rate$AgeGroup)
+
+#plot the data
+displacement_forest_plot = ggplot(all_age_rate, aes(x = displacement_count, y = subject_ordered_rev, color = AgeGroup, group = AgeGroup)) +
+                              sm_forest(sep_level = 2, position = position_dodge(width = 0.5), points = FALSE, 
+                                        legends = TRUE, borders = FALSE, errorbar_type = "se", point.params = list(color = "black", size = 0.4), 
+                                        avgPoint.params = list(alpha = 0.9, shape = 18, size = 4.5)) +                            
+                              scale_x_continuous(breaks = seq(0, 4, 1), limits = c(0, 4)) +                      
+                              scale_color_manual(values = age_col_order, name = "Age (years)", 
+                                                breaks = c("51 to 60", "41 to 50", "31 to 40", "21 to 30", "11 to 20", "6 to 10")) +
+                              xlab("Displacements per bout") +
+                              ylab("Individual") + 
+                              guides(color = guide_legend(title = "Age (years)")) +
+                              scale_y_discrete(limits = rev) +                      
+                              helvetica_theme
+
+displacement_forest_plot
+
+#save the plot 
+ggsave("../plots/displacement_forest_plot.jpg", displacement_forest_plot, height = 16, width = 9, bg = "white")
+
+## PLOT TOOL SWITCH RATE ##
+
+#save the plot
+tool_switch_forest_plot = ggplot(all_age_rate, aes(x = tool_switch_count, y = subject_ordered_rev, color = AgeGroup, group = AgeGroup)) +
+                              sm_forest(sep_level = 2, position = position_dodge(width = 0.5), points = TRUE, 
+                                        legends = TRUE, borders = FALSE, errorbar_type = "se", point.params = list(color = "black", size = 0.35), 
+                                        avgPoint.params = list(alpha = 0.9, shape = 18, size = 4.5)) +                            
+                              scale_x_continuous(breaks = seq(0, 5, 1), limits = c(0, 5)) +                      
+                              scale_color_manual(values = age_col_order, name = "Age (years)", 
+                                                 breaks = c("51 to 60", "41 to 50", "31 to 40", "21 to 30", "11 to 20", "6 to 10")) +
+                              xlab("Tool switches per bout") +
+                              ylab("Individual") + 
+                              guides(color = guide_legend(title = "Age (years)")) +
+                              scale_y_discrete(limits = rev) +                      
+                              helvetica_theme
+
+tool_switch_forest_plot
+
+#save the plot 
+ggsave("../plots/tool_switch_forest_plot.jpg", tool_switch_forest_plot, height = 16, width = 9, bg = "white")
+
+## PLOT SUCCESS RATE ##
+
+#age 6 to 10
+success_rate_6_10 = as.data.frame(table(age_6_10_rate$subject, age_6_10_rate$bout_outcome)) #make data frame 
+success_rate_6_10 = spread(success_rate_6_10, Var2, Freq) #make the long data frame wide
+success_rate_6_10$AgeGroup = "6 to 10" #add in the age group to demarcate it
+colnames(success_rate_6_10)[1] = "subject" #rename the subject column to being called 'subject'
+
+#make new columns for the proportions of each bout outcome
+success_rate_6_10 <- success_rate_6_10 %>% mutate ("prop_success" = (Successful / (Successful + Smash + Failed)))
+success_rate_6_10 <- success_rate_6_10 %>% mutate ("prop_smash" = (Smash / (Successful + Smash + Failed)))
+success_rate_6_10 <- success_rate_6_10 %>% mutate ("prop_fail" = (Failed/ (Successful + Smash + Failed)))
+
+#age 11 to 20
+success_rate_11_20 = as.data.frame(table(age_11_20_rate$subject, age_11_20_rate$bout_outcome)) #make data frame 
+success_rate_11_20 = spread(success_rate_11_20, Var2, Freq) #make the long data frame wide
+success_rate_11_20$AgeGroup = "11 to 20" #add in the age group to demarcate it
+colnames(success_rate_11_20)[1] = "subject" #rename the subject column to being called 'subject'
+
+#make new columns for the proportions of each bout outcome
+success_rate_11_20 <- success_rate_11_20 %>% mutate ("prop_success" = (Successful / (Successful + Smash + Failed)))
+success_rate_11_20 <- success_rate_11_20 %>% mutate ("prop_smash" = (Smash / (Successful + Smash + Failed)))
+success_rate_11_20 <- success_rate_11_20 %>% mutate ("prop_fail" = (Failed/ (Successful + Smash + Failed)))
+
+#age 21 to 30
+success_rate_21_30 = as.data.frame(table(age_21_30_rate$subject, age_21_30_rate$bout_outcome)) #make data frame 
+success_rate_21_30 = spread(success_rate_21_30, Var2, Freq) #make the long data frame wide
+success_rate_21_30$AgeGroup = "21 to 30" #add in the age group to demarcate it
+colnames(success_rate_21_30)[1] = "subject" #rename the subject column to being called 'subject'
+
+#make new columns for the proportions of each bout outcome
+success_rate_21_30 <- success_rate_21_30 %>% mutate ("prop_success" = (Successful / (Successful + Smash + Failed)))
+success_rate_21_30 <- success_rate_21_30 %>% mutate ("prop_smash" = (Smash / (Successful + Smash + Failed)))
+success_rate_21_30 <- success_rate_21_30 %>% mutate ("prop_fail" = (Failed/ (Successful + Smash + Failed)))
+
+#age 31 to 40
+success_rate_31_40 = as.data.frame(table(age_31_40_rate$subject, age_31_40_rate$bout_outcome)) #make data frame 
+success_rate_31_40 = spread(success_rate_31_40, Var2, Freq) #make the long data frame wide
+success_rate_31_40$AgeGroup = "31 to 40" #add in the age group to demarcate it
+colnames(success_rate_31_40)[1] = "subject" #rename the subject column to being called 'subject'
+
+#make new columns for the proportions of each bout outcome
+success_rate_31_40 <- success_rate_31_40 %>% mutate ("prop_success" = (Successful / (Successful + Smash + Failed)))
+success_rate_31_40 <- success_rate_31_40 %>% mutate ("prop_smash" = (Smash / (Successful + Smash + Failed)))
+success_rate_31_40 <- success_rate_31_40 %>% mutate ("prop_fail" = (Failed/ (Successful + Smash + Failed)))
+
+#age 41 to 50
+success_rate_41_50 = as.data.frame(table(age_41_50_rate$subject, age_41_50_rate$bout_outcome)) #make data frame 
+success_rate_41_50 = spread(success_rate_41_50, Var2, Freq) #make the long data frame wide
+success_rate_41_50$AgeGroup = "41 to 50" #add in the age group to demarcate it
+colnames(success_rate_41_50)[1] = "subject" #rename the subject column to being called 'subject'
+
+#make new columns for the proportions of each bout outcome
+success_rate_41_50 <- success_rate_41_50 %>% mutate ("prop_success" = (Successful / (Successful + Smash + Failed)))
+success_rate_41_50 <- success_rate_41_50 %>% mutate ("prop_smash" = (Smash / (Successful + Smash + Failed)))
+success_rate_41_50 <- success_rate_41_50 %>% mutate ("prop_fail" = (Failed/ (Successful + Smash + Failed)))
+
+#age 51 to 60
+success_rate_51_60 = as.data.frame(table(age_51_60_rate$subject, age_51_60_rate$bout_outcome)) #make data frame 
+success_rate_51_60 = spread(success_rate_51_60, Var2, Freq) #make the long data frame wide
+success_rate_51_60$AgeGroup = "51 to 60" #add in the age group to demarcate it
+colnames(success_rate_51_60)[1] = "subject" #rename the subject column to being called 'subject'
+
+#make new columns for the proportions of each bout outcome
+success_rate_51_60 <- success_rate_51_60 %>% mutate ("prop_success" = (Successful / (Successful + Smash + Failed)))
+success_rate_51_60 <- success_rate_51_60 %>% mutate ("prop_smash" = (Smash / (Successful + Smash + Failed)))
+success_rate_51_60 <- success_rate_51_60 %>% mutate ("prop_fail" = (Failed/ (Successful + Smash + Failed)))
+
+#add all of the age groups together into a variable called all_age_rate
+success_rate_all_ages = do.call("rbind", list(success_rate_6_10, success_rate_11_20, success_rate_21_30, success_rate_31_40, success_rate_41_50, success_rate_51_60)) 
+
+#make `success_rate_all_ages` wide
+success_rate_all_ages = gather(success_rate_all_ages, outcome, proportion, prop_success:prop_fail, factor_key = TRUE)
+
+success_rate_all_ages = subset(success_rate_all_ages, success_rate_all_ages$outcome == "prop_success")
+
+success_rate_all_ages$subject_ordered = factor(success_rate_all_ages$subject, levels = c("Fanwaa", "Flanle", "Ja", "Joya", "Nto", "Poni", "Fotaiu", "Na", "Peley", "Pili", "Vuavua",
+                                                                                         "Vui", "Yolo", "Fanle", "Jeje", "Foaf", "Fana", "Jire", "Kai", "Tua", "Velu", "Yo"))
+#order the age group factor into ascending order
+success_rate_all_ages$AgeGroup = factor(success_rate_all_ages$AgeGroup, levels = c("6 to 10", "11 to 20", "21 to 30", "31 to 40", "41 to 50", "51 to 60")) 
+success_rate_all_ages$outcome = factor(success_rate_all_ages$outcome, levels = c("prop_fail", "prop_smash", "prop_success")) 
+
+#plot the data
+success_proportion_age = ggplot(success_rate_all_ages, aes(fill=AgeGroup, y=proportion, x=reorder(subject_ordered, proportion))) +
+                            geom_bar(stat="identity", position = position_dodge2(preserve = "single")) +
+                            facet_grid(vars(AgeGroup), scales = "free") +                             
+                            scale_fill_manual(values = c("#c6dbef", "#fdae6b", "#6baed6", "#f16913", "#2171b5", "#a63603"), name = "Age Group") +
+                            xlab("Individual") +
+                            ylab("Proportion of bouts ending in success") +
+                            scale_y_continuous(breaks = seq(0, 1, 0.2), limits = c(0, 1)) +
+                            coord_flip() +
+                            helvetica_theme +
+                            theme(legend.position = "none")
+
+success_proportion_age 
+
+#save the plot 
+ggsave("../plots/success_proportion_age.jpg", success_proportion_age, height = 16, width = 9)
+
+### ### ###
+
+#order the data by age and then success rate
+success_rate_all_ages_ordered = success_rate_all_ages[with(success_rate_all_ages, order(AgeGroup, proportion)), ]
+
+#add a row number
+success_rate_all_ages_ordered$row = 1:nrow(success_rate_all_ages_ordered)
+
+#get a list of the names for each individual
+names_list = success_rate_all_ages_ordered$subject
+
+#plot the data
+success_proportion_age_o = ggplot(data = success_rate_all_ages_ordered, aes(x = row, y = proportion, fill = AgeGroup)) +
+                            geom_bar(stat="identity") + 
+                            scale_x_continuous(breaks = seq(1, nrow(success_rate_all_ages_ordered), 1), labels = names_list) + 
+                            scale_fill_manual(breaks = c("51 to 60", "41 to 50", "31 to 40", "21 to 30", "11 to 20", "6 to 10"),
+                                              values = c("#a63603", "#2171b5", "#f16913", "#6baed6", "#fdae6b", "#c6dbef"), name = "Age Group") +
+                            xlab("Individual") + 
+                            ylab("Proportion of bouts ending in success") +
+                            guides(fill = guide_legend(title = "Age (years)")) +
+                            coord_flip() + 
+                            helvetica_theme
+
+#save the plot 
+ggsave("../plots/success_proportion_age_ordered.jpg", success_proportion_age_o, height = 16, width = 9)
 
 ################################################################################################################################################
 
@@ -510,7 +779,6 @@ rank_plot = ggplot(one_ranks, aes(x = rank, y = subject, color = outcome)) +
               geom_jitter(width = 0, height = 0.3, alpha = 0.5, data = multiple_ranks) +
               scale_x_continuous(limits = c(1, 21), breaks = c(1, 5, 10, 15, 20) ) +
               scale_color_manual(values = c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "black"), name = "Measure") +
-              #scale_color_brewer(palette = "Set2") + 
               ylab("Individual") +
               xlab("Rank") +
               labs(colour = "Outcome") +
@@ -527,7 +795,7 @@ ranks_wide = cast(all_ranks, subject ~ outcome, value = "rank")
 names(ranks_wide) = c("subject", "bout_duration", "displacement_count", "strike_count", "success_rate", "tool_switch_count")
 
 #calculate the inter class correlation coefficient
-icc_results = icc(ranks_wide[, c("bout_duration", "displacement_count", "strike_count", "success_rate", "tool_switch_count")], model = "twoway", type = "consistency", unit = "single")
+icc_results = icc(ranks_wide[, c("bout_duration", "displacement_count", "strike_count", "success_rate", "tool_switch_count")], model = "twoway", type = "agreement", unit = "single")
 icc_results
 
 #look at correlation matrix
@@ -538,8 +806,9 @@ rownames(M1) <- c("Bout duration", "Strikes/nut",  "Success rate", "Displacement
 
 #plot and save the correlation matrix
 correlation_plot = ggcorrplot(M1, hc.order = FALSE, type = "upper", outline.col = "white", lab = TRUE, colors = c("#0072B2", "white", "#D55E00"),
-                     legend.title = expression(paste("Correlation (", italic("r"), ")")),
-                     title = "Correlation of rankings for all pairs of nut cracking efficiency measures") + 
+                     legend.title = expression(paste("Correlation (", italic("r"), ")"))) + 
+                     xlab("") +
+                     ylab("") +
                      helvetica_theme
 correlation_plot
 
@@ -547,8 +816,17 @@ correlation_plot
 ggsave("../plots/correlation_matrix.jpg", correlation_plot, height = 7.5, width = 7.5, bg="white")
 
 #re-calculate the inter class correlation coefficient, removing tool switch count
-icc_results_new = icc(ranks_wide[, c("bout_duration", "displacement_count", "success_rate", "strike_count")], model = "twoway", type = "consistency", unit = "single")
+icc_results_new = icc(ranks_wide[, c("bout_duration", "displacement_count", "success_rate", "strike_count")], model = "twoway", type = "agreement", unit = "single")
 icc_results_new
+
+#get the mean of all the correlations
+mean(c(M1[ 2:5, 1], M1[ 3:5, 2], M1[ 4:5, 3], M1[5, 4]))
+
+#get the mean of all the correlations excluding tool switch rate
+mean(c(M1[ 2:4, 1], M1[ 3:4, 2], M1[ 4, 3]))
+
+#get tool switch rate correlation with the other variables
+mean(M1[1:4, 5])
 
 ### ### ###
 
@@ -559,7 +837,7 @@ multiple_ranks_eff = subset(multiple_ranks, multiple_ranks$outcome != "Tool swit
 set.seed(5)
 rank_plot_eff = ggplot(one_ranks_eff, aes(x = rank, y = subject, color = outcome)) +
                   geom_point() +
-                  geom_jitter(width = 0, height = 0.3, alpha = 0.5, data = multiple_ranks_eff) +
+                  geom_jitter(width = 0, height = 0.3, alpha = 0.75, data = multiple_ranks_eff) +
                   scale_x_continuous(limits = c(1, 21), breaks = c(1, 5, 10, 15, 20) ) +
                   scale_color_manual(values = c("#1b9e77", "#d95f02", "#7570b3", "#e7298a"), name = "Measure") +
                   ylab("Individual") +
@@ -570,6 +848,194 @@ rank_plot_eff
 
 #save the plot
 ggsave("../plots/efficiency_rank_plot.jpg", rank_plot_eff, height = 10, width = 7.5)
+
+################################################################################################################################################
+
+### WITHIN INDIVIDUAL STABILITY ###
+
+detach(package:lmerTest)
+library(nlme)
+
+#check the data
+table(efficiency_data$subject, efficiency_data$age)
+
+#individuals to keep in the dataset
+keep = c("Fanle", "Foaf", "Jeje", "Jire", "Tua", "Velu")
+
+
+#subset the dataset and check it
+around = subset(efficiency_data, efficiency_data$subject %in% keep)
+around$subject = droplevels(around$subject)
+
+around = subset(around, around$age >= 11)
+around = subset(around, around$age <= 40)
+
+table(around$subject, around$age)
+
+#create a time variable (time since first observation in adulthood)
+around$time_since = ifelse(around$subject == "Fanle", around$age - 11, around$age)
+around$time_since = ifelse(around$subject == "Foaf", around$age - 12, around$time_since)
+around$time_since = ifelse(around$subject == "Jeje", around$age - 11, around$time_since)
+around$time_since = ifelse(around$subject == "Jire", around$age - 34, around$time_since)
+around$time_since = ifelse(around$subject == "Tua", around$age - 35, around$time_since)
+around$time_since = ifelse(around$subject == "Velu", around$age - 35, around$time_since)
+
+table( around$subject, around$time_since)
+table( around$subject, around$age)
+
+### BOUT DURATION ###
+
+#run the model with the `time_since` variable
+mod1_sub_time_since = lmer(log(bout_duration) ~ 1 + time_since + (1 + time_since | subject), data = around)
+
+mod1_sub_time_since = lme(log(bout_duration) ~ 1 + time_since, 
+                          random = ~ 1 + time_since | subject,
+                          data = around)
+
+summary(mod1_sub_time_since)
+ranef(mod1_sub_time_since)
+
+plot_model(mod1_sub_time_since, type="pred",terms = c("time_since","subject"), pred.type="re")
+
+#plot the raw data
+ggplot(around, aes(x = time_since, y = bout_duration, color = subject)) + 
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = "lm", se = TRUE)
+
+### ### ###
+
+#run the model with the `age` variable
+mod1_sub_age = lmer(log(bout_duration) ~ 1 + age + (1 + age | subject), data = around)
+summary(mod1_sub_age)
+
+plot_model(mod1_sub_age, type="pred",terms = c("age","subject"), pred.type="re")
+
+#plot the raw data
+plot_mod1_sub_age = ggplot(around, aes(x = age, y = bout_duration, color = subject)) + 
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = "lm", se = TRUE) + 
+  xlab("Age") + 
+  ylab("Bout duration") + 
+  theme_bw()
+
+#save the plot
+ggsave("../plots/age_effect_in_adulthood_bout_duration_stability.jpg", plot_mod1_sub_age, height = 7.5, width = 10)
+
+### ### ###
+
+#run the model with the `age` variable
+mod2_sub_age = lmer(log(bout_duration) ~ 1 + age + (1 + age | subject), data = around)
+summary(mod1_sub_age)
+
+plot_model(mod1_sub_age, type="pred",terms = c("age","subject"), pred.type="re")
+
+#plot the raw data
+plot_mod1_sub_age = ggplot(around, aes(x = age, y = bout_duration, color = subject)) + 
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = "lm", se = TRUE) + 
+  xlab("Age") + 
+  ylab("Bout duration") + 
+  theme_bw()
+
+#save the plot
+ggsave("../plots/age_effect_in_adulthood_bout_duration_stability.jpg", plot_mod1_sub_age, height = 7.5, width = 10)
+
+### STRIKES PER NUT ###
+
+#fit truncated negative binomial model with random slope
+spn_mod_tmb_nb_slopes = glmmTMB(strike_count ~ 1 + age + sex + (1 + age | subject), data = around, family = truncated_nbinom2(link="log")) 
+summary(spn_mod_tmb_nb_slopes)
+
+#extract the data to plot
+strike_slope_list = sjPlot::plot_model(spn_mod_tmb_nb_slopes, type = "pred", terms=c("age","subject"), pred.type = "re", ci.lvl=.01)
+strike_slope_data = as.data.frame(strike_slope_list["data"]$data)
+
+#drop missing data for individuals
+strike_slope_data_cleaned = rbind(subset(strike_slope_data, group == "Fanle" & x <= 20), 
+                                  subset(strike_slope_data, group == "Foaf" & x <= 37), 
+                                  subset(strike_slope_data, group == "Jeje" & x <= 20), 
+                                  subset(strike_slope_data, group == "Jire" & x >= 34), 
+                                  subset(strike_slope_data, group == "Tua" & x >= 35), 
+                                  subset(strike_slope_data, group == "Velu" & x >= 35))
+
+#plot the raw data
+plot_strikes_sub_age = ggplot(around, aes(x = age, y = strike_count, color = subject)) + 
+                        geom_point(alpha = 0.5) + 
+                        geom_line(data = strike_slope_data_cleaned, aes(x = x, y = predicted, color = group)) + 
+                        geom_ribbon(data = strike_slope_data_cleaned, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, 
+                                                  color = group), alpha=0.1, linetype = 0) +
+                        xlab("Age") + 
+                        ylab("Strike count") + 
+                        theme_bw()
+
+#save the plot
+ggsave("../plots/age_effect_in_adulthood_strikes_stability.jpg", plot_strikes_sub_age, height = 7.5, width = 10)
+
+### SUCCESS RATE ###
+
+#just look at successful (or not instances)
+around$bout_outcome_numeric = ifelse(around$bout_outcome == "Successful", 1, 0)
+
+#fit model with random slope
+glmer_simp_slopes = glmer(bout_outcome_numeric ~ 1 + age + (1 + age | subject), data = around, 
+                          family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+summary(glmer_simp_slopes)
+
+#extract the data to plot
+success_slope_list = sjPlot::plot_model(glmer_simp_slopes, type = "pred", terms=c("age","subject"), pred.type = "re", ci.lvl=.01)
+success_slope_data = as.data.frame(success_slope_list["data"]$data)
+
+#drop missing data for individuals
+success_slope_data_cleaned = rbind(subset(success_slope_data, group == "Fanle" & x <= 20), 
+                                   subset(success_slope_data, group == "Foaf" & x <= 37), 
+                                   subset(success_slope_data, group == "Jeje" & x <= 20), 
+                                   subset(success_slope_data, group == "Jire" & x >= 34), 
+                                   subset(success_slope_data, group == "Tua" & x >= 35), 
+                                   subset(success_slope_data, group == "Velu" & x >= 35))
+
+#plot the raw data
+plot_success_sub_age = ggplot(around, aes(color = subject)) + 
+                        geom_line(data = success_slope_data_cleaned, aes(x = x, y = predicted, color = group)) + 
+                        geom_ribbon(data = success_slope_data_cleaned, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, 
+                                                                          color = group), alpha=0.1, linetype = 0) +
+                        xlab("Age") + 
+                        ylab("Proportion of bouts ending in success") + 
+                        theme_bw()
+
+#save the plot
+ggsave("../plots/age_effect_in_adulthood_success_stability.jpg", plot_success_sub_age, height = 7.5, width = 10)
+
+### DISPLACEMENT RATE ###
+
+#fit model with random slope
+dr_mod_tmb_slope = glmmTMB(displacement_count ~ 1 + age + (1 + age | subject), data = around, family = nbinom1) 
+summary(dr_mod_tmb_slope)
+
+#extract the data to plot
+displacement_slope_list = sjPlot::plot_model(dr_mod_tmb_slope, type = "pred", terms=c("age","subject"), pred.type = "re", ci.lvl=.5)
+displacement_slope_data = as.data.frame(displacement_slope_list["data"]$data)
+
+#drop missing data for individuals
+displacement_slope_data_cleaned = rbind(subset(displacement_slope_data, group == "Fanle" & x <= 20), 
+                                        subset(displacement_slope_data, group == "Foaf" & x <= 37), 
+                                        subset(displacement_slope_data, group == "Jeje" & x <= 20), 
+                                        subset(displacement_slope_data, group == "Jire" & x >= 34), 
+                                        subset(displacement_slope_data, group == "Tua" & x >= 35), 
+                                        subset(displacement_slope_data, group == "Velu" & x >= 35))
+
+#plot the raw data
+plot_displacement_sub_age = ggplot(around, aes(x = age, y = displacement_count, color = subject)) + 
+                              geom_point(alpha = 0.5) + 
+                              geom_line(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, color = group)) + 
+                              geom_ribbon(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, 
+                                          color = group), alpha=0.1, linetype = 0) +
+                              xlab("Age") + 
+                              ylab("Displacements per bout") + 
+                              theme_bw()
+
+#save the plot
+ggsave("../plots/age_effect_in_adulthood_displacement_stability.jpg", plot_displacement_sub_age, height = 7.5, width = 10)
 
 ################################################################################################################################################
 
@@ -718,3 +1184,381 @@ bout_d_residual_plot = plotNormalHistogram(residuals(bout_d),
 plot(bout_d_residual_plot)
 ggsave(file="../plots/bout_d_residual_plot.jpg", bout_d_residual_plot, width = 850)
 dev.off()
+
+################################################################################################################################################
+
+### RANK STABILITY OVER TIME ###
+
+library(ordinal)
+
+#function for "not in"
+'%!in%' = function(x,y)!('%in%'(x,y))
+
+#load and subset the data
+sr_data = read.csv('../clean_data/cleaned_efficiency_data.csv')
+sr_data = subset(sr_data,
+                 sr_data$nut_species != "Coula nut" &
+                   sr_data$bout_outcome != "None" &
+                   sr_data$learner %!in% c("Clinging","Clinging and Peering"))
+
+#make individual and sex a factor
+sr_data$sex = as.factor(sr_data$sex)
+sr_data$subject = as.factor(sr_data$subject)
+
+### ### ###
+
+#order the outcome variable
+sr_data$bout_outcome_ordered = ordered(sr_data$bout_outcome, c("Failed", "Smash", "Successful"))
+
+### ### ###
+
+### ### ###
+
+#subset by individuals with sufficient time in the dataset
+stalwarts_sub = subset(efficiency_data, efficiency_data$subject %in% c("Fana", "Jire", "Yo", "Tua"))
+stalwarts = subset(sr_data, sr_data$subject %in% c("Fana", "Jire", "Yo", "Tua"))
+
+stalwarts_sub$subject = droplevels(stalwarts_sub$subject)
+stalwarts$subject = droplevels(stalwarts$subject)
+table(stalwarts$subject)
+
+#subset by ages
+stalwarts_whitney_sub = subset(stalwarts_sub, stalwarts_sub$date %in% c(1992, 1993, 1994, 1995, 1996))
+stalwarts_alicia_sub = subset(stalwarts_sub, stalwarts_sub$date %in% c(2000, 2001, 2002, 2003, 2004))
+stalwarts_beyonce_sub = subset(stalwarts_sub, stalwarts_sub$date %in% c(2008, 2009, 2010, 2011, 2012))
+
+stalwarts_whitney = subset(stalwarts, stalwarts$date %in% c(1992, 1993, 1994, 1995, 1996))
+stalwarts_alicia = subset(stalwarts, stalwarts$date %in% c(2000, 2001, 2002, 2003, 2004))
+stalwarts_beyonce = subset(stalwarts, stalwarts$date %in% c(2008, 2009, 2010, 2011, 2012))
+
+#check data totals
+table(stalwarts_whitney_sub$subject, stalwarts_whitney_sub$date)
+table(stalwarts_alicia_sub$subject, stalwarts_alicia_sub$date)
+table(stalwarts_beyonce_sub$subject, stalwarts_beyonce_sub$date)
+
+table(stalwarts_whitney$subject, stalwarts_whitney$date)
+table(stalwarts_alicia$subject, stalwarts_alicia$date)
+table(stalwarts_beyonce$subject, stalwarts_beyonce$date)
+
+#run the models on each subset of data
+young_bout_duration = lmer(log(bout_duration) ~ 1 + age + sex + (1 | subject), data = stalwarts_whitney_sub)
+young_spn_mod_tmb_nb = glmmTMB(strike_count ~ 1 + age + sex + (1 | subject), data = stalwarts_whitney_sub, family = truncated_nbinom2(link="log")) 
+young_clmm1_simp = clmm2(bout_outcome_ordered ~ sex, random =  subject, data = stalwarts_whitney, Hess = TRUE, nAGQ = 7)
+young_dr_mod_tmb = glmmTMB(displacement_count ~ 1 + age + sex + (1 | subject), data = stalwarts_whitney, family = nbinom1, zi = ~ 1) 
+
+middle_bout_duration = lmer(log(bout_duration) ~ 1 + age + sex + (1 | subject), data = stalwarts_alicia_sub)
+middle_spn_mod_tmb_nb = glmmTMB(strike_count ~ 1 + age + sex + (1 | subject), data = stalwarts_alicia_sub, family = truncated_nbinom2(link="log")) 
+middle_clmm1_simp = clmm2(bout_outcome_ordered ~ sex, random =  subject, data = stalwarts_alicia, Hess = TRUE, nAGQ = 7)
+middle_dr_mod_tmb = glmmTMB(displacement_count ~ 1 + age + sex + (1 | subject), data = stalwarts_alicia, family = nbinom1, zi = ~ 1) 
+
+old_bout_duration = lmer(log(bout_duration) ~ 1 + age + sex + (1 | subject), data = stalwarts_beyonce_sub)
+old_spn_mod_tmb_nb = glmmTMB(strike_count ~ 1 + age + sex + (1 | subject), data = stalwarts_beyonce_sub, family = truncated_nbinom2(link="log")) 
+old_clmm1_simp = clmm2(bout_outcome_ordered ~ sex, random =  subject, data = stalwarts_beyonce, Hess = TRUE, nAGQ = 7)
+old_dr_mod_tmb = glmmTMB(displacement_count ~ 1 + age + sex + (1 | subject), data = stalwarts_beyonce, family = nbinom1, zi = ~ 1) 
+
+#create a total dataframe to add results to
+rank_by_year = data.frame(intercept = c(), 
+                          lower_95 = c(),
+                          upper_95 = c(),
+                          subject = c(),
+                          rank = c(),
+                          year_span = c(),
+                          measure = c())
+
+### GET RANK FOR BOUT DURATION - YEAR SPANS ###
+
+#get random effects and their variances
+model_re_tmp = lme4::ranef(young_bout_duration, condVar = TRUE)
+temp_vars = as.data.frame.table((attr(lme4::ranef(young_bout_duration, condVar = TRUE)[[1]], "postVar")))
+
+#add to a dataframe
+rand_ints = model_re_tmp$subject
+colnames(rand_ints)[1] = "intercept"
+rand_ints$variance = temp_vars$Freq
+
+#calculate standard deviation for intercepts and 95% CI
+rand_ints$error = 2*sqrt(rand_ints$variance)
+rand_ints$lower_95 = rand_ints$intercept - rand_ints$error
+rand_ints$upper_95 = rand_ints$intercept + rand_ints$error
+
+#create a subject variable
+rand_ints$subject = rownames(rand_ints)
+
+#order by size of intercept
+rand_ints$subject = factor(rand_ints$subject, levels = rand_ints$subject[order(rand_ints$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_duration_ordered = rand_ints[order(rand_ints$intercept), ]
+rand_int_duration_ordered$rank = seq.int(nrow(rand_int_duration_ordered))
+rand_int_duration_ordered$year_span = "1992–1996"
+rand_int_duration_ordered$measure = "Bout duration"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_duration_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ###
+
+#get random effects and their variances
+model_re_tmp = lme4::ranef(middle_bout_duration, condVar = TRUE)
+temp_vars = as.data.frame.table((attr(lme4::ranef(middle_bout_duration, condVar = TRUE)[[1]], "postVar")))
+
+#add to a dataframe
+rand_ints = model_re_tmp$subject
+colnames(rand_ints)[1] = "intercept"
+rand_ints$variance = temp_vars$Freq
+
+#calculate standard deviation for intercepts and 95% CI
+rand_ints$error = 2*sqrt(rand_ints$variance)
+rand_ints$lower_95 = rand_ints$intercept - rand_ints$error
+rand_ints$upper_95 = rand_ints$intercept + rand_ints$error
+
+#create a subject variable
+rand_ints$subject = rownames(rand_ints)
+
+#order by size of intercept
+rand_ints$subject = factor(rand_ints$subject, levels = rand_ints$subject[order(rand_ints$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_duration_ordered = rand_ints[order(rand_ints$intercept), ]
+rand_int_duration_ordered$rank = seq.int(nrow(rand_int_duration_ordered))
+rand_int_duration_ordered$year_span = "2000–2004"
+rand_int_duration_ordered$measure = "Bout duration"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_duration_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ###
+
+#get random effects and their variances
+model_re_tmp = lme4::ranef(old_bout_duration, condVar = TRUE)
+temp_vars = as.data.frame.table((attr(lme4::ranef(old_bout_duration, condVar = TRUE)[[1]], "postVar")))
+
+#add to a dataframe
+rand_ints = model_re_tmp$subject
+colnames(rand_ints)[1] = "intercept"
+rand_ints$variance = temp_vars$Freq
+
+#calculate standard deviation for intercepts and 95% CI
+rand_ints$error = 2*sqrt(rand_ints$variance)
+rand_ints$lower_95 = rand_ints$intercept - rand_ints$error
+rand_ints$upper_95 = rand_ints$intercept + rand_ints$error
+
+#create a subject variable
+rand_ints$subject = rownames(rand_ints)
+
+#order by size of intercept
+rand_ints$subject = factor(rand_ints$subject, levels = rand_ints$subject[order(rand_ints$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_duration_ordered = rand_ints[order(rand_ints$intercept), ]
+rand_int_duration_ordered$rank = seq.int(nrow(rand_int_duration_ordered))
+rand_int_duration_ordered$year_span = "2008–2012"
+rand_int_duration_ordered$measure = "Bout duration"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_duration_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### GET RANK FOR STRIKES PER NUT - YEAR SPANS ###
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(young_spn_mod_tmb_nb, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_strikes_ordered = mod_re[order(mod_re$intercept), ]
+rand_int_strikes_ordered$rank = seq.int(nrow(rand_int_strikes_ordered))
+rand_int_strikes_ordered$year_span = "1992–1996"
+rand_int_strikes_ordered$measure = "Strikes per nut"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_strikes_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ###
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(middle_spn_mod_tmb_nb, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_strikes_ordered = mod_re[order(mod_re$intercept), ]
+rand_int_strikes_ordered$rank = seq.int(nrow(rand_int_strikes_ordered))
+rand_int_strikes_ordered$year_span = "2000–2004"
+rand_int_strikes_ordered$measure = "Strikes per nut"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_strikes_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ###
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(old_spn_mod_tmb_nb, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_strikes_ordered = mod_re[order(mod_re$intercept), ]
+rand_int_strikes_ordered$rank = seq.int(nrow(rand_int_strikes_ordered))
+rand_int_strikes_ordered$year_span = "2008–2012"
+rand_int_strikes_ordered$measure = "Strikes per nut"
+
+#add to the total data frame
+rank_by_year = rbind(rank_by_year, rand_int_strikes_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### GET RANK FOR SUCCESS RATE - YEAR SPAN ###
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(young_clmm1_simp$ranef)
+names(mod_re) = "intercept"
+mod_re[, c("lower_95", "upper_95")] = young_clmm1_simp$ranef + qnorm(0.975) * sqrt(young_clmm1_simp$condVar) %o% c(-1, 1)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = unique(stalwarts_whitney$subject)
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_success_ordered = mod_re[order(mod_re$intercept, decreasing = TRUE), ]
+rand_int_success_ordered$rank = seq.int(nrow(rand_int_success_ordered))
+rand_int_success_ordered$year_span = "1992–1996"
+rand_int_success_ordered$measure = "Success rate"
+
+#add to the total data frame
+rank_by_year = rbind(rank_by_year, rand_int_success_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ### 
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(middle_clmm1_simp$ranef)
+names(mod_re) = "intercept"
+mod_re[, c("lower_95", "upper_95")] = middle_clmm1_simp$ranef + qnorm(0.975) * sqrt(middle_clmm1_simp$condVar) %o% c(-1, 1)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = unique(stalwarts_alicia$subject)
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_success_ordered = mod_re[order(mod_re$intercept, decreasing = TRUE), ]
+rand_int_success_ordered$rank = seq.int(nrow(rand_int_success_ordered))
+rand_int_success_ordered$year_span = "2000–2004"
+rand_int_success_ordered$measure = "Success rate"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_success_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ### 
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(old_clmm1_simp$ranef)
+names(mod_re) = "intercept"
+mod_re[, c("lower_95", "upper_95")] = old_clmm1_simp$ranef + qnorm(0.975) * sqrt(old_clmm1_simp$condVar) %o% c(-1, 1)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = unique(stalwarts_beyonce$subject)
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_success_ordered = mod_re[order(mod_re$intercept, decreasing = TRUE), ]
+rand_int_success_ordered$rank = seq.int(nrow(rand_int_success_ordered))
+rand_int_success_ordered$year_span = "2008–2012"
+rand_int_success_ordered$measure = "Success rate"
+
+#add to the total data frame
+rank_by_year = rbind(rank_by_year, rand_int_success_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### DISPLACEMENT RATE ###
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(young_dr_mod_tmb, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_displacement_ordered = mod_re[order(mod_re$intercept), ]
+rand_int_displacement_ordered$rank = seq.int(nrow(rand_int_displacement_ordered))
+rand_int_displacement_ordered$year_span = "1992–1996"
+rand_int_displacement_ordered$measure = "Displacement rate"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_displacement_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ### 
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(middle_dr_mod_tmb, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_displacement_ordered = mod_re[order(mod_re$intercept), ]
+rand_int_displacement_ordered$rank = seq.int(nrow(rand_int_displacement_ordered))
+rand_int_displacement_ordered$year_span = "2000–2004"
+rand_int_displacement_ordered$measure = "Displacement rate"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_displacement_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+### ### ### 
+
+#get random effects and confidence intervals
+mod_re = as.data.frame(lme4::ranef(old_dr_mod_tmb, condVar = TRUE))
+mod_re$intercept = mod_re$condval
+mod_re$lower_95 = mod_re$intercept - (qnorm(0.975) * mod_re$condsd)
+mod_re$upper_95 = mod_re$intercept + (qnorm(0.975) * mod_re$condsd)
+
+#add the `Subject` variable and order it according to intercept size
+mod_re$subject = mod_re$grp
+mod_re$subject = factor(mod_re$subject, levels = mod_re$subject[order(mod_re$intercept)])
+
+#sort data frame by intercept, and give rank, age, and measure
+rand_int_displacement_ordered = mod_re[order(mod_re$intercept), ]
+rand_int_displacement_ordered$rank = seq.int(nrow(rand_int_displacement_ordered))
+rand_int_displacement_ordered$year_span = "2008–2012"
+rand_int_displacement_ordered$measure = "Displacement rate"
+
+#add to the total dataframe
+rank_by_year = rbind(rank_by_year, rand_int_displacement_ordered[, c("intercept", "lower_95", "upper_95", "subject", "rank", "year_span", "measure")])
+
+################################################################################################################################################
+
+### PLOT THE DATA ###
+
+library(ggpubr)
+
+#all measures plot
+rank_stability_timeperiods = ggplot(rank_by_year, aes(x = year_span, y = rank, group = subject)) + 
+                                  geom_line(aes(color = subject)) + 
+                                  geom_point(size = 2, aes(color = subject)) + 
+                                  facet_wrap(~ measure) +
+                                  scale_color_manual(values = c("#1b9e77", "#d95f02", "#7570b3", "#e7298a"), name = "Subject") +
+                                  scale_x_discrete("Years") +
+                                  scale_y_discrete(limits = c(1,2, 3, 4), name = "Rank") +
+                                  helvetica_theme 
+rank_stability_timeperiods
+
+ggsave("../plots/rank_stability_timeperiods.jpg", rank_stability_timeperiods, height = 9, width = 16)
