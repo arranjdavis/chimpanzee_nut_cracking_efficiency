@@ -723,6 +723,12 @@ around_no_failed = subset(around_no_failed, around_no_failed$age <= 40)
 
 table(around_no_failed$subject, around_no_failed$age)
 
+#get size of dataset (then by individual)
+nrow(around)
+nrow(around_no_failed)
+
+table(around$subject)
+
 ### BOUT DURATION ###
 
 #run the model with the `age` variable (model fails to converge)
@@ -801,7 +807,7 @@ displacement_slope_data_cleaned = rbind(subset(displacement_slope_data, group ==
                                         subset(displacement_slope_data, group == "Jire" & x >= 34), 
                                         subset(displacement_slope_data, group == "Tua" & x >= 35), 
                                         subset(displacement_slope_data, group == "Velu" & x >= 35),
-                                        subset(success_slope_data, group == "Fana" & x >= 38))
+                                        subset(displacement_slope_data, group == "Fana" & x >= 38))
 
 #plot the raw data and random slopes
 plot_displacement_sub_age = ggplot(around, aes(x = age, y = displacement_count, color = subject)) + 
