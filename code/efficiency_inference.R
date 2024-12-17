@@ -72,6 +72,18 @@ helvetica_theme = theme(text=element_text(size = header_size,family='Helvetica')
                         legend.title = element_text(face = "bold"),
                         plot.title = element_text(hjust = 0.5, face = "bold"))
 
+nature_human_behavior = theme(text=element_text(size = 7 , family = 'Helvetica'),
+                          axis.text.x = element_text(color = 'black', size = 7, vjust = 1),
+                          axis.text.y = element_text(color = 'black', size = 7),
+                          axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), face = "bold", size = 7),
+                          axis.title.x = element_text(margin = margin(t = 10, r = 10, b = 0, l = 0), face = "bold", size = 7),
+                          panel.background = element_blank(),
+                          panel.grid.major.x = element_line(color = '#e7e7e7'),
+                          panel.grid.major.y = element_line(color = '#e7e7e7'),
+                          legend.key = element_blank(),
+                          legend.title = element_text(face = "bold"),
+                          plot.title = element_text(hjust = 0.5, face = "bold"))
+
 #set the font
 par(family = 'helvetica')
 
@@ -505,6 +517,14 @@ summary(clmm1)
 #the `age` predictor was the problem; this model converges - use this model
 clmm1_simp = clmm2(bout_outcome_ordered ~ sex, random = subject, data = sr_data, Hess = TRUE, nAGQ = 7)
 summary(clmm1_simp)
+df.residual(clmm1_simp)
+
+#get the confidence interval for this model
+clmm1_simp_sum = summary(clmm1_simp)
+upper = clmm1_simp_sum$coefficients[3] + (1.96 * clmm1_simp_sum$coefficients[6])
+lower = clmm1_simp_sum$coefficients[3] - (1.96 * clmm1_simp_sum$coefficients[6])
+upper
+lower
 
 #get the odds ratio for the `sex` and `age` variable
 exp(coef(clmm1_simp)[4])
@@ -742,7 +762,7 @@ spn_mod_tmb_nb_slopes = glmmTMB(strike_count ~ 1 + age + sex + (1 + age | subjec
 summary(spn_mod_tmb_nb_slopes)
 
 #extract the data to plot
-strike_slope_list = sjPlot::plot_model(spn_mod_tmb_nb_slopes, type = "pred", terms=c("age [all]","subject"), pred.type = "re", ci.lvl=.05)
+strike_slope_list = sjPlot::plot_model(spn_mod_tmb_nb_slopes, type = "pred", terms = c("age [all]","subject"), pred.type = "re", se = TRUE)
 strike_slope_data = as.data.frame(strike_slope_list["data"]$data)
 
 #drop missing data for individuals
@@ -758,12 +778,14 @@ strike_slope_data_cleaned = rbind(subset(strike_slope_data, group == "Fanle" & x
 plot_strikes_sub_age = ggplot(around_no_failed, aes(x = age, y = strike_count, color = subject)) + 
                         geom_point(position = position_dodge(0.5), alpha = 0.5) + 
                         geom_line(data = strike_slope_data_cleaned, aes(x = x, y = predicted, color = group), size = 0.75) + 
-                        geom_ribbon(data = strike_slope_data_cleaned, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, 
+                        geom_ribbon(data = strike_slope_data_cleaned, aes(x = x, y = predicted, ymin = (predicted - std.error), ymax = (predicted + std.error), 
                                                                           color = group), alpha=0.1, linetype = 0) +
                         scale_color_manual(values = c("#465177", "#E4C22B", "#965127", "#29483A", "#9FB6DA", "#759C44", "#DF3383"), name = "Individual" )+
                         scale_x_continuous(limits = c(9, 41), breaks = c(10, 15, 20, 25, 30, 35, 40)) +
+                        scale_x_continuous(limits = c(9, 41), breaks = c(10, 15, 20, 25, 30, 35, 40)) +
                         xlab("Age (years)") + 
                         ylab("Strikes per nut") +
+                        coord_cartesian(ylim = c(0.9, 20)) + 
                         helvetica_theme
 
 #save the plot
@@ -797,7 +819,7 @@ dr_mod_tmb_slope = glmmTMB(displacement_count ~ 1 + age + sex + (1 + age | subje
 summary(dr_mod_tmb_slope)
 
 #extract the data to plot
-displacement_slope_list = sjPlot::plot_model(dr_mod_tmb_slope, type = "pred", terms=c("age [all]","subject"), pred.type = "re", ci.lvl=.5)
+displacement_slope_list = sjPlot::plot_model(dr_mod_tmb_slope, type = "pred", terms = c("age [all]","subject"), pred.type = "re", se = TRUE)
 displacement_slope_data = as.data.frame(displacement_slope_list["data"]$data)
 
 #drop missing data for individuals
@@ -813,13 +835,14 @@ displacement_slope_data_cleaned = rbind(subset(displacement_slope_data, group ==
 plot_displacement_sub_age = ggplot(around, aes(x = age, y = displacement_count, color = subject)) + 
                               geom_point(position = position_dodge(0.5), alpha = 0.5) + 
                               geom_line(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, color = group), size = 0.75) + 
-                              geom_ribbon(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, 
-                                                                                      color = group), alpha=0.1, linetype = 0) +
+                              geom_ribbon(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, ymin = (predicted - std.error), ymax = (predicted + std.error), 
+                                                                                color = group), alpha=0.1, linetype = 0) + 
                               scale_color_manual(values = c("#465177", "#E4C22B", "#965127", "#29483A", "#9FB6DA", "#759C44", "#DF3383"), name = "Individual") +
                               scale_x_continuous(limits = c(9, 41), breaks = c(10, 15, 20, 25, 30, 35, 40)) + 
-                              scale_y_continuous(limits = c(0, 6), breaks = c(0, 1, 2, 3, 4, 5, 6)) + 
+                              scale_y_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) + 
                               xlab("Age (years)") + 
                               ylab("Displacements per bout") + 
+                              coord_cartesian(ylim = c(0.2, 6)) + 
                               helvetica_theme
 
 #save the plot
@@ -950,12 +973,61 @@ rank_plot_eff = ggplot(one_ranks_eff, aes(x = rank, y = subject, color = outcome
                   scale_color_manual(values = c("#1b9e77", "#d95f02", "#7570b3", "#e7298a"), name = "Measure") +
                   ylab("Individual") +
                   xlab("Rank") +
-                  labs(colour = "Outcome") +
-                  helvetica_theme 
+                  labs(colour = "Outcome") + 
+                  theme(legend.position = "top", legend.spacing.x = unit(.1, 'mm')) + 
+                  guides(size = guide_legend(title.position="top", title.hjust = 0.5)) +
+                  nature_human_behavior 
+
+
 rank_plot_eff
 
 #save the plot
 ggsave("../plots/efficiency_rank_plot.jpg", rank_plot_eff, height = 10, width = 7.5)
+ggsave("../plots/efficiency_rank_plot.pdf", rank_plot_eff, width = 180, height = 120, units = "mm")
+
+################################################################################################################################################
+
+### COMBINED FIGURE FOR PUBLICATION ###
+
+#make plots for combined figure
+plot_strikes_sub_age_both = ggplot(around_no_failed, aes(x = age, y = strike_count, color = subject)) + 
+                              geom_point(position = position_dodge(0.5), alpha = 0.5) + 
+                              geom_line(data = strike_slope_data_cleaned, aes(x = x, y = predicted, color = group), size = 0.75) + 
+                              geom_ribbon(data = strike_slope_data_cleaned, aes(x = x, y = predicted, ymin = (predicted - std.error), ymax = (predicted + std.error), 
+                                                                                color = group), alpha=0.1, linetype = 0) +
+                              scale_color_manual(values = c("#465177", "#E4C22B", "#965127", "#29483A", "#9FB6DA", "#759C44", "#DF3383"), name = "Individual" )+
+                              scale_x_continuous(limits = c(9, 41), breaks = c(10, 15, 20, 25, 30, 35, 40)) +
+                              scale_x_continuous(limits = c(9, 41), breaks = c(10, 15, 20, 25, 30, 35, 40)) +
+                              xlab("Age (years)") + 
+                              ylab("Strikes per nut") +
+                              coord_cartesian(ylim = c(0.9, 20)) + 
+                              theme(legend.position = "none") +
+                              nature_human_behavior
+
+
+plot_displacement_sub_age_both = ggplot(around, aes(x = age, y = displacement_count, color = subject)) + 
+                                  geom_point(position = position_dodge(0.5), alpha = 0.5) + 
+                                  geom_line(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, color = group), size = 0.75) + 
+                                  geom_ribbon(data = displacement_slope_data_cleaned, aes(x = x, y = predicted, ymin = (predicted - std.error), ymax = (predicted + std.error), 
+                                                                                          color = group), alpha=0.1, linetype = 0) + 
+                                  scale_color_manual(values = c("#465177", "#E4C22B", "#965127", "#29483A", "#9FB6DA", "#759C44", "#DF3383"), name = "Individual") +
+                                  scale_x_continuous(limits = c(9, 41), breaks = c(10, 15, 20, 25, 30, 35, 40)) + 
+                                  scale_y_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6)) + 
+                                  xlab("Age (years)") + 
+                                  ylab("Displacements per bout") + 
+                                  guides(colour = guide_legend(nrow = 1)) +
+                                  theme(legend.position = "none") +
+                                  coord_cartesian(ylim = c(0.2, 6)) + 
+                                  nature_human_behavior
+
+#combine the plots
+strikes_plus_displacement = ggarrange(plot_strikes_sub_age_both, plot_displacement_sub_age_both, 
+                                      common.legend = TRUE, legend = "right", labels = c("a", "b"), font.label=list(color="black",size=7))
+strikes_plus_displacement
+
+#save the plot
+ggsave("../plots/figure4.pdf", strikes_plus_displacement, width = 180, height = 120, units = "mm")
+ggsave("../plots/figure4.jpg", strikes_plus_displacement, width = 180, height = 120, units = "mm")
 
 ################################################################################################################################################
 
