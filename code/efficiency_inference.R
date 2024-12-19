@@ -789,7 +789,7 @@ plot_strikes_sub_age = ggplot(around_no_failed, aes(x = age, y = strike_count, c
                         helvetica_theme
 
 #save the plot
-ggsave("../plots/plot_strikes_age.jpg", plot_strikes_sub_age, height = 9, width = 16)
+ggsave("../plots/strikes_per_nut_random_slopes_age.jpg", plot_strikes_sub_age, height = 9, width = 16)
 
 ### SUCCESS RATE ###
 
@@ -846,7 +846,7 @@ plot_displacement_sub_age = ggplot(around, aes(x = age, y = displacement_count, 
                               helvetica_theme
 
 #save the plot
-ggsave("../plots/plot_displacement_age.jpeg", plot_displacement_sub_age, height = 9, width = 16)
+ggsave("../plots/displacement_random_slopes_age.jpg", plot_displacement_sub_age, height = 9, width = 16)
 
 ################################################################################################################################################
 
