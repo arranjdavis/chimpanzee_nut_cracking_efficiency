@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/f32d9bfa-7764-45a3-8ab3-33dcbddf3f10)# Reliable long-term individual variation in wild chimpanzee technological efficiency
+# Reliable long-term individual variation in wild chimpanzee technological efficiency
 
 ### Berdugo, S., Cohen, E., Davis, A. J., Matsuzawa, T., & Carvalho, S.
 
